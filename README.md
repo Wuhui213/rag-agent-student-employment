@@ -63,7 +63,7 @@ rag-agent-student-employment/
 copy .env.example .env
 ```
 
-然后填写：
+后填写：
 
 ```env
 OPENAI_API_KEY=你的模型Key
@@ -72,7 +72,6 @@ EMAIL_USER=你的QQ邮箱
 EMAIL_PASSWORD=你的QQ邮箱SMTP授权码
 ```
 
-注意：不要把 `.env` 上传到 GitHub。
 
 ## 启动后端
 
@@ -143,17 +142,4 @@ python import_data.py
 - 画一个不同州学校的收入中位数柱状图
 - 分析不同就业行业的毕业生人数和收入差异
 
-## GitHub 上传
 
-详细步骤见：
-
-```text
-docs/github_upload.md
-```
-
-核心原则：
-
-- 上传 `.env.example`
-- 不上传 `.env`
-- 不上传 `node_modules`
-- 不上传日志和本地上传文件
