@@ -154,6 +154,98 @@ ECHAT_KEYWORDS = ["图表", "图", "画", "可视化", "柱状图", "饼图", "�
 ANLYZE_KEYWORDS = ["数据分析", "分析", "统计", "报告", "总结", "趋势"]
 
 
+def is_valid_chart_option(text):
+    """判断文本是否为可渲染的 ECharts option。"""
+    try:
+        obj = json.loads(text)
+        series = obj.get("series")
+        return bool(series and isinstance(series, list) and len(series) > 0)
+    except Exception:
+        return False
+
+
+def build_pseo_bar_chart(question: str):
+    """当模型图表生成失败时，直接用数据库结果生成 PSEO 柱状图。"""
+    q = question.lower()
+
+    if "10年" in question or "10 年" in question:
+        metric = "median_earnings_10yr"
+        metric_name = "毕业后10年收入中位数"
+    elif "5年" in question or "5 年" in question:
+        metric = "median_earnings_5yr"
+        metric_name = "毕业后5年收入中位数"
+    else:
+        metric = "median_earnings_1yr"
+        metric_name = "毕业后1年收入中位数"
+
+    if "专业大类" in question or "专业方向" in question or "专业" in question:
+        dimension = "major_category"
+        dimension_name = "专业大类"
+    elif "学校" in question or "院校" in question:
+        dimension = "institution_name"
+        dimension_name = "学校"
+    elif "州" in question or "地区" in question:
+        dimension = "institution_state"
+        dimension_name = "地区"
+    elif "行业" in question:
+        dimension = "industry"
+        dimension_name = "行业"
+    else:
+        dimension = "degree_level"
+        dimension_name = "学历层级"
+
+    sql = f"""
+        SELECT `{dimension}` AS label, ROUND(AVG(`{metric}`), 2) AS value
+        FROM student_placement
+        WHERE `{dimension}` IS NOT NULL
+          AND `{dimension}` <> ''
+          AND `{metric}` IS NOT NULL
+          AND `{metric}` > 0
+        GROUP BY `{dimension}`
+        ORDER BY value DESC
+        LIMIT 10
+    """
+
+    con = get_db_connection()
+    cursor = con.cursor()
+    try:
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        con.close()
+
+    if not rows:
+        return None
+
+    labels = [str(row[0]) for row in rows]
+    values = [float(row[1]) for row in rows]
+
+    return {
+        "title": {"text": f"📊 不同{dimension_name}的{metric_name}"},
+        "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+        "toolbox": {"feature": {"saveAsImage": {}}},
+        "grid": {"left": "8%", "right": "6%", "bottom": "18%", "containLabel": True},
+        "xAxis": {
+            "type": "category",
+            "data": labels,
+            "axisLabel": {"rotate": 30, "interval": 0}
+        },
+        "yAxis": {
+            "type": "value",
+            "name": "美元",
+            "axisLabel": {"formatter": "${value}"}
+        },
+        "series": [{
+            "name": metric_name,
+            "type": "bar",
+            "data": values,
+            "itemStyle": {"color": "#5470C6"},
+            "label": {"show": True, "position": "top", "formatter": "${c}"}
+        }]
+    }
+
+
 @chat_router.post("/chat")
 async def chat(request: Request, question: str = Form(...), user_id: str = Form(...), session_id: str = Form(None)):
     q = question.lower()
@@ -184,6 +276,11 @@ async def chat(request: Request, question: str = Form(...), user_id: str = Form(
         result = echarts_agent.answer(personalized_question, user_id)
         extracted = extract_json_from_text(result)
         logger.info(f"[图表路由] 原始返回长度: {len(result)}, 提取后长度: {len(extracted)}")
+        if not is_valid_chart_option(extracted):
+            logger.warn("[图表路由] 模型未返回有效图表配置，使用本地PSEO柱状图兜底")
+            fallback_chart = build_pseo_bar_chart(question)
+            if fallback_chart:
+                extracted = json.dumps(fallback_chart, ensure_ascii=False)
         # 保存AI消息
         save_message(user_id, sid, "ai", extracted, msg_type='chart')
         return PlainTextResponse(content=extracted, media_type="application/json")

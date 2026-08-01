@@ -12,20 +12,28 @@ load_dotenv()
 logger = Logger.get_logger(__name__)
 
 DATABASE_SCHEMA = """
-【重要】数据库表结构说明 - 大学生就业数据分析系统
+【重要】数据库表结构说明 - PSEO 高校毕业生就业与收入数据分析系统
 
-## student_placement 学生就业数据表
+## student_placement PSEO就业与收入数据表
 字段说明：
-- College_ID(学院标识) - VARCHAR, 格式如 CLG0001-CLG0100
-- IQ(智商分数) - INT
-- Prev_Sem_Result(上学期GPA) - DOUBLE, 范围5.0-10.0
-- CGPA(累计GPA) - DOUBLE, 范围约5.0-10.0
-- Academic_Performance(学术评分) - INT, 范围1-10
-- Internship_Experience(是否实习) - VARCHAR, Yes/No
-- Extra_Curricular_Score(课外活动评分) - INT, 范围0-10
-- Communication_Skills(沟通技能评分) - INT, 范围1-10
-- Projects_Completed(完成项目数) - INT, 范围0-5
-- Placement(是否就业) - VARCHAR, Yes/No
+- institution_id(学校/机构ID) - VARCHAR
+- institution_name(学校/机构名称) - VARCHAR
+- institution_state(学校所在州/地区) - VARCHAR
+- institution_type(学校类型或层级) - VARCHAR
+- degree_level(学历层级) - VARCHAR
+- degree_field(专业/学科字段) - VARCHAR
+- major_category(专业大类) - VARCHAR
+- graduation_year(毕业年份) - INT
+- cohort_year(毕业 cohort/统计批次) - VARCHAR
+- industry(就业行业) - VARCHAR
+- employment_count(就业人数) - INT
+- total_graduates(毕业生人数/样本人数) - INT
+- employment_rate(就业率) - DOUBLE，已按0-100百分比保存
+- median_earnings_1yr(毕业后1年收入中位数) - DOUBLE
+- median_earnings_5yr(毕业后5年收入中位数) - DOUBLE
+- median_earnings_10yr(毕业后10年收入中位数) - DOUBLE
+- p25_earnings(收入第25百分位) - DOUBLE
+- p75_earnings(收入第75百分位) - DOUBLE
 """
 
 
@@ -52,7 +60,7 @@ class AnlyzeAgent:
 
 【人格设定】
 - 你很聪明也很温暖，分析完会给鼓励
-- summary结论要精炼但有人情味，比如"实习经历确实对就业帮助很大呢！🌟"
+- summary结论要精炼但有人情味，比如"这个专业方向的收入表现确实很亮眼呢！🌟"
 - analysis详细分析要逻辑清晰，但不枯燥
 - conclusion列表每条开头可以加个emoji标签，比如"🎯 关键发现"、"📊 数据洞察"
 - 知道用户姓名时，在conclusion最后加一句个性化鼓励
@@ -64,7 +72,7 @@ class AnlyzeAgent:
 - 在结论中可以用用户的姓名称呼，增加亲切感
 
 工作流程：
-1. 根据用户问题，调用 mysql_tool 查询数据
+1. 根据用户问题，调用 mysql_tool 查询 PSEO 数据
 2. 对查询结果进行深入分析
 3. 同时生成一个 ECharts 图表配置来可视化分析结果
 
@@ -75,8 +83,9 @@ class AnlyzeAgent:
 重要规则：
 - 只能使用SELECT查询
 - 涉及排名时使用 ORDER BY 和 LIMIT
-- 就业率 = Placement='Yes'的记录数 / 总记录数 * 100，结果为百分比数值（如16.77而非0.1677）
-- 【关键】SQL中计算就业率必须乘以100，示例：SUM(CASE WHEN Placement='Yes' THEN 1 ELSE 0 END)*100.0/COUNT(*) AS employment_rate
+- 就业率优先使用 employment_rate 字段；如果该字段为空且有就业人数和毕业生人数，可用 employment_count*100.0/NULLIF(total_graduates,0) 计算
+- 收入分析优先使用 median_earnings_1yr、median_earnings_5yr、median_earnings_10yr；分位数分析使用 p25_earnings、p75_earnings
+- 常用分组维度：institution_name、institution_state、degree_level、degree_field、major_category、industry、graduation_year
 - 图表中所有涉及百分比的数据，数值范围应为0-100，而非0-1
 - 配色方案：#5470C6, #91CC75, #FAC858, #EE6666, #73C0DE
 - 绝对不要用 ```json ... ``` 包裹，不要在JSON前后添加任何说明文字
@@ -105,5 +114,5 @@ class AnlyzeAgent:
 
 if __name__ == "__main__":
     agent = AnlyzeAgent()
-    rs = agent.answer("分析一下有实习经验的学生就业率", "2972526358@qq.com")
+    rs = agent.answer("分析一下不同学历层级的收入中位数", "2972526358@qq.com")
     print(rs)

@@ -4,7 +4,7 @@
 
 【功能】
 1. 创建 users 表（登录验证用）
-2. 创建 student_placement 表（大学生就业数据）
+2. 创建 student_placement 表（PSEO 高校毕业生就业与收入数据）
 3. 创建 chat_history 表（聊天记录持久化）
 4. 创建 user_preferences 表（用户偏好设置）
 5. 插入测试用户数据到 users 表
@@ -63,26 +63,40 @@ def init_database():
         print("✓ users 表创建成功")
         
         # ============================================
-        # 2. 创建 student_placement 表（大学生就业数据）
+        # 2. 创建 student_placement 表（PSEO 高校毕业生就业与收入数据）
         # ============================================
-        print("\n创建 student_placement 表（大学生就业数据表）...")
+        print("\n重建 student_placement 表（PSEO 高校毕业生就业与收入数据表）...")
+        cursor.execute("DROP TABLE IF EXISTS `student_placement`")
         student_table_sql = """
-        CREATE TABLE IF NOT EXISTS `student_placement` (
+        CREATE TABLE `student_placement` (
             `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
-            `College_ID` VARCHAR(20) NOT NULL COMMENT '学院标识，如CLG0001-CLG0100',
-            `IQ` INT COMMENT '智商分数',
-            `Prev_Sem_Result` DOUBLE COMMENT '上学期GPA，范围5.0-10.0',
-            `CGPA` DOUBLE COMMENT '累计GPA，范围约5.0-10.0',
-            `Academic_Performance` INT COMMENT '学术评分，范围1-10',
-            `Internship_Experience` VARCHAR(10) COMMENT '是否实习，Yes/No',
-            `Extra_Curricular_Score` INT COMMENT '课外活动评分，范围0-10',
-            `Communication_Skills` INT COMMENT '沟通技能评分，范围1-10',
-            `Projects_Completed` INT COMMENT '完成项目数，范围0-5',
-            `Placement` VARCHAR(10) COMMENT '是否就业，Yes/No',
-            INDEX `idx_college_id` (`College_ID`),
-            INDEX `idx_placement` (`Placement`),
-            INDEX `idx_internship` (`Internship_Experience`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='大学生就业数据表';
+            `institution_id` VARCHAR(50) DEFAULT NULL COMMENT '学校/机构ID',
+            `institution_name` VARCHAR(255) DEFAULT NULL COMMENT '学校/机构名称',
+            `institution_state` VARCHAR(50) DEFAULT NULL COMMENT '学校所在州/地区',
+            `institution_type` VARCHAR(100) DEFAULT NULL COMMENT '学校类型或层级',
+            `degree_level` VARCHAR(100) DEFAULT NULL COMMENT '学历层级，如Certificate/Associate/Bachelor/Master/Doctoral',
+            `degree_field` VARCHAR(255) DEFAULT NULL COMMENT '专业/学科字段',
+            `major_category` VARCHAR(255) DEFAULT NULL COMMENT '专业大类',
+            `graduation_year` INT DEFAULT NULL COMMENT '毕业年份',
+            `cohort_year` VARCHAR(50) DEFAULT NULL COMMENT '毕业 cohort/统计批次',
+            `industry` VARCHAR(255) DEFAULT NULL COMMENT '就业行业',
+            `employment_count` INT DEFAULT NULL COMMENT '就业人数',
+            `total_graduates` INT DEFAULT NULL COMMENT '毕业生人数/样本人数',
+            `employment_rate` DOUBLE DEFAULT NULL COMMENT '就业率，百分比数值0-100',
+            `median_earnings_1yr` DOUBLE DEFAULT NULL COMMENT '毕业后1年收入中位数',
+            `median_earnings_5yr` DOUBLE DEFAULT NULL COMMENT '毕业后5年收入中位数',
+            `median_earnings_10yr` DOUBLE DEFAULT NULL COMMENT '毕业后10年收入中位数',
+            `p25_earnings` DOUBLE DEFAULT NULL COMMENT '收入第25百分位',
+            `p75_earnings` DOUBLE DEFAULT NULL COMMENT '收入第75百分位',
+            `source_file` VARCHAR(255) DEFAULT NULL COMMENT '导入来源文件名',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '导入时间',
+            INDEX `idx_institution` (`institution_name`),
+            INDEX `idx_state` (`institution_state`),
+            INDEX `idx_degree_level` (`degree_level`),
+            INDEX `idx_degree_field` (`degree_field`),
+            INDEX `idx_industry` (`industry`),
+            INDEX `idx_graduation_year` (`graduation_year`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='PSEO 高校毕业生就业与收入数据表';
         """
         cursor.execute(student_table_sql)
         print("✓ student_placement 表创建成功")
@@ -154,7 +168,7 @@ def init_database():
         print("\n" + "="*50)
         print("✅ 数据库初始化完成！")
         print(f"  - users 表（用户表）")
-        print(f"  - student_placement 表（就业数据表）")
+        print(f"  - student_placement 表（PSEO就业与收入数据表）")
         print(f"  - chat_history 表（聊天记录表）")
         print(f"  - user_preferences 表（用户偏好表）")
         print("="*50)

@@ -1,12 +1,12 @@
-# 小智 RAG Agent：大学生就业数据分析系统
+# 小智 RAG Agent：PSEO 高校毕业生就业与收入数据分析系统
 
-这是一个基于 FastAPI、Vue3、LangChain、LangGraph、MySQL 和大模型接口的智能数据分析项目。系统支持邮箱验证码登录、自然语言查询就业数据、生成分析结论和 ECharts 图表。
+这是一个基于 FastAPI、Vue3、LangChain、LangGraph、MySQL 和大模型接口的智能数据分析项目。系统支持邮箱验证码登录、自然语言查询 PSEO 就业与收入数据、生成分析结论和 ECharts 图表。
 
 ## 功能
 
 - 邮箱验证码登录
-- 大学生就业数据自然语言问答
-- 就业率、实习经验、GPA、学院维度分析
+- PSEO 就业与收入数据自然语言问答
+- 就业率、收入中位数、学校、专业、学历、行业维度分析
 - ECharts 图表生成
 - 聊天记录保存
 - CSV / Excel 数据上传导入
@@ -77,7 +77,7 @@ EMAIL_PASSWORD=你的QQ邮箱SMTP授权码
 ## 启动后端
 
 ```powershell
-pip install -r requirement.txt
+pip install -r requirements.txt
 python init_db.py
 python import_data.py
 python main.py
@@ -113,28 +113,35 @@ http://localhost:5173
 - 邮箱 SMTP 配置正确
 - 后端服务保持运行，验证码会临时保存在后端内存中，重启后验证码会失效
 
-## 数据测试
+## PSEO 数据导入
 
-项目内置了小型示例数据：
+当前业务表已适配 PSEO（Post-Secondary Employment Outcomes）高校毕业生就业与收入数据。把下载后的 PSEO CSV/Excel 文件放到 `data/` 目录，例如：
 
 ```text
-data/sample_student_placement.csv
+data/pseo_outcomes.csv
 ```
 
-运行：
+在 `.env` 中配置：
+
+```text
+DATA_FILE_PATH=data/pseo_outcomes.csv
+```
+
+然后依次运行：
 
 ```powershell
+python init_db.py
 python import_data.py
 ```
 
-即可把示例数据导入 `student_placement` 表。
+即可重建 `student_placement` 表并导入 PSEO 数据。导入脚本已内置常见 PSEO 字段映射，缺少的非关键字段会置空，便于先快速跑通。
 
 ## 可提问示例
 
-- 统计一下总体就业率
-- 分析实习经验对就业的影响
-- 画一个不同学院就业率柱状图
-- 查询 GPA 最高的前 10 名学生
+- 统计一下不同学历层级的就业率
+- 哪些专业毕业后 1 年收入中位数最高
+- 画一个不同州学校的收入中位数柱状图
+- 分析不同就业行业的毕业生人数和收入差异
 
 ## GitHub 上传
 

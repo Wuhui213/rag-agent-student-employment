@@ -12,20 +12,28 @@ load_dotenv()
 logger = Logger.get_logger(__name__)
 
 DATABASE_SCHEMA = """
-【重要】数据库表结构说明 - 大学生就业数据分析系统
+【重要】数据库表结构说明 - PSEO 高校毕业生就业与收入数据分析系统
 
-## student_placement 学生就业数据表
+## student_placement PSEO就业与收入数据表
 字段说明：
-- College_ID(学院标识) - VARCHAR, 格式如 CLG0001-CLG0100
-- IQ(智商分数) - INT
-- Prev_Sem_Result(上学期GPA) - DOUBLE, 范围5.0-10.0
-- CGPA(累计GPA) - DOUBLE, 范围约5.0-10.0
-- Academic_Performance(学术评分) - INT, 范围1-10
-- Internship_Experience(是否实习) - VARCHAR, Yes/No
-- Extra_Curricular_Score(课外活动评分) - INT, 范围0-10
-- Communication_Skills(沟通技能评分) - INT, 范围1-10
-- Projects_Completed(完成项目数) - INT, 范围0-5
-- Placement(是否就业) - VARCHAR, Yes/No
+- institution_id(学校/机构ID) - VARCHAR
+- institution_name(学校/机构名称) - VARCHAR
+- institution_state(学校所在州/地区) - VARCHAR
+- institution_type(学校类型或层级) - VARCHAR
+- degree_level(学历层级) - VARCHAR
+- degree_field(专业/学科字段) - VARCHAR
+- major_category(专业大类) - VARCHAR
+- graduation_year(毕业年份) - INT
+- cohort_year(毕业 cohort/统计批次) - VARCHAR
+- industry(就业行业) - VARCHAR
+- employment_count(就业人数) - INT
+- total_graduates(毕业生人数/样本人数) - INT
+- employment_rate(就业率) - DOUBLE，已按0-100百分比保存
+- median_earnings_1yr(毕业后1年收入中位数) - DOUBLE
+- median_earnings_5yr(毕业后5年收入中位数) - DOUBLE
+- median_earnings_10yr(毕业后10年收入中位数) - DOUBLE
+- p25_earnings(收入第25百分位) - DOUBLE
+- p75_earnings(收入第75百分位) - DOUBLE
 """
 
 
@@ -47,7 +55,7 @@ class EchartsAgent:
 - 如果用户信息中包含姓名和学院，在图表标题中可以体现用户关注的方向
 - 如果用户来自某个学院，优先展示与该学院相关的数据对比
 - 根据用户要求的详细程度调整图表复杂度
-- 图表标题要有温度，比如"小雨的学院就业洞察📊"而不是冷冰冰的"就业率统计"
+- 图表标题要有温度，比如"小雨关注的专业收入洞察📊"而不是冷冰冰的"收入统计"
 
 工作流程：
 1. 根据用户问题，调用 mysql_tool 查询 student_placement 表获取数据
@@ -58,7 +66,9 @@ class EchartsAgent:
 - 图表必须有工具栏(toolbox.feature.saveAsImage)
 - 涉及排名时使用 ORDER BY 和 LIMIT，最多展示10条
 - 只能使用SELECT查询
-- 【关键】计算就业率时必须乘以100，返回百分比数值（如16.77而非0.1677）。SQL写法示例：SUM(CASE WHEN Placement='Yes' THEN 1 ELSE 0 END)*100.0/COUNT(*) AS employment_rate
+- 【关键】就业率优先使用 employment_rate 字段；如果该字段为空且有就业人数和毕业生人数，可用 employment_count*100.0/NULLIF(total_graduates,0) AS employment_rate 计算
+- 收入图表优先使用 median_earnings_1yr、median_earnings_5yr、median_earnings_10yr
+- 常用分组维度：institution_name、institution_state、degree_level、degree_field、major_category、industry、graduation_year
 - 图表中所有涉及百分比的数据，数值范围应为0-100，而非0-1
 - label和tooltip中显示百分比时格式为"{c}%"
 
@@ -91,6 +101,6 @@ class EchartsAgent:
 if __name__ == "__main__":
     agent = EchartsAgent()
     print(agent.answer(
-        question="用柱状图分析不同学院的学生就业情况",
+        question="用柱状图分析不同专业的毕业后1年收入中位数",
         user_id="3082686649@qq.com"
     ))

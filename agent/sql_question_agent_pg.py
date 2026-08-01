@@ -11,20 +11,28 @@ load_dotenv()
 logger = Logger.get_logger(__name__)
 
 DATABASE_SCHEMA = """
-【重要】数据库表结构说明 - 大学生就业数据分析系统
+【重要】数据库表结构说明 - PSEO 高校毕业生就业与收入数据分析系统
 
-## student_placement 学生就业数据表
+## student_placement PSEO就业与收入数据表
 字段说明：
-- College_ID(学院标识) - VARCHAR, 格式如 CLG0001-CLG0100
-- IQ(智商分数) - INT
-- Prev_Sem_Result(上学期GPA) - DOUBLE, 范围5.0-10.0
-- CGPA(累计GPA) - DOUBLE, 范围约5.0-10.0
-- Academic_Performance(学术评分) - INT, 范围1-10
-- Internship_Experience(是否实习) - VARCHAR, Yes/No
-- Extra_Curricular_Score(课外活动评分) - INT, 范围0-10
-- Communication_Skills(沟通技能评分) - INT, 范围1-10
-- Projects_Completed(完成项目数) - INT, 范围0-5
-- Placement(是否就业) - VARCHAR, Yes/No
+- institution_id(学校/机构ID) - VARCHAR
+- institution_name(学校/机构名称) - VARCHAR
+- institution_state(学校所在州/地区) - VARCHAR
+- institution_type(学校类型或层级) - VARCHAR
+- degree_level(学历层级) - VARCHAR
+- degree_field(专业/学科字段) - VARCHAR
+- major_category(专业大类) - VARCHAR
+- graduation_year(毕业年份) - INT
+- cohort_year(毕业 cohort/统计批次) - VARCHAR
+- industry(就业行业) - VARCHAR
+- employment_count(就业人数) - INT
+- total_graduates(毕业生人数/样本人数) - INT
+- employment_rate(就业率) - DOUBLE，已按0-100百分比保存
+- median_earnings_1yr(毕业后1年收入中位数) - DOUBLE
+- median_earnings_5yr(毕业后5年收入中位数) - DOUBLE
+- median_earnings_10yr(毕业后10年收入中位数) - DOUBLE
+- p25_earnings(收入第25百分位) - DOUBLE
+- p75_earnings(收入第75百分位) - DOUBLE
 
 ## users 用户表（登录验证用）
 字段说明：
@@ -51,7 +59,7 @@ class SqlQuestionAgentAg:
         return self.tools
 
     def init_agent(self):
-        prompt = f"""你是「小智」，一个活泼可爱的大学生就业数据分析助手 🤖✨
+        prompt = f"""你是「小智」，一个活泼可爱的高校毕业生就业与收入数据分析助手 🤖✨
 你有工具 mysql_tool 执行SQL查询。
 
 {DATABASE_SCHEMA}
@@ -76,16 +84,18 @@ class SqlQuestionAgentAg:
 重要规则：
 1. 只能使用SELECT查询，禁止INSERT/UPDATE/DELETE
 2. 涉及排名或TOP N时，必须使用 ORDER BY 和 LIMIT，最多10条
-3. 就业率 = Placement='Yes' 的记录数 / 总记录数 * 100，结果为百分比数值（如16.77而非0.1677）。SQL写法：SUM(CASE WHEN Placement='Yes' THEN 1 ELSE 0 END)*100.0/COUNT(*)
-4. 实习经验与就业关系：对比 Internship_Experience='Yes' 和 'No' 的就业率
-5. GPA分析：按GPA分段统计就业率
-6. 沟通技能分析：按 Communication_Skills 分段统计就业率
-7. 学院分析：按 College_ID 分组统计各学院就业情况
+3. 就业率优先使用 employment_rate 字段；如果该字段为空且有就业人数和毕业生人数，可用 employment_count*100.0/NULLIF(total_graduates,0) 计算
+4. 收入分析优先使用 median_earnings_1yr、median_earnings_5yr、median_earnings_10yr
+5. 学校分析按 institution_name 或 institution_state 分组
+6. 专业分析按 degree_field 或 major_category 分组
+7. 学历分析按 degree_level 分组
+8. 行业分析按 industry 分组
 
 回答要求：
 - 直接用自然语言回答，展示关键数据
-- 如果用户问就业率，要同时给出具体数字和百分比
-- 如果用户问对比分析，要给出对比数据
+- 如果用户问就业率，返回百分比并说明样本量
+- 如果用户问收入，说明是中位数还是分位数
+- 如果用户问对比分析，要给出对比维度、排序结果和必要解释
 """
         self.agent = create_react_agent(
             model=self.model,
@@ -110,7 +120,7 @@ if __name__ == "__main__":
     agent = SqlQuestionAgentAg()
 
     async def gernert():
-        async for x in agent.answer("统计一下就业率和未就业人数", 10):
+        async for x in agent.answer("统计一下不同专业的就业率和收入中位数", 10):
             print(x, end="")
 
     asyncio.run(gernert())

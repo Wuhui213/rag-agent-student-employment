@@ -19,7 +19,7 @@ def _is_safe_select(sql: str) -> bool:
 
 @tool("mysql_tool", args_schema=MysqlSchema)
 def mysql_tool(sql: str) -> str:
-    """执行只读 MySQL 查询，用于查询 users 和 student_placement 表。"""
+    """执行只读 MySQL 查询，用于查询 users 和 student_placement(PSEO就业与收入数据) 表。"""
     if not _is_safe_select(sql):
         return "查询被拒绝：只允许执行 SELECT 只读查询"
 
