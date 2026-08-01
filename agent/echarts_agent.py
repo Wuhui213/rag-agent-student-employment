@@ -1,0 +1,96 @@
+from langgraph.prebuilt import create_react_agent
+from utils.Logger import Logger
+from langchain_core.messages import HumanMessage
+from model.model import MyModel
+from tool.mysql_tool import mysql_tool
+from langgraph.checkpoint.memory import MemorySaver
+import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+logger = Logger.get_logger(__name__)
+
+DATABASE_SCHEMA = """
+【重要】数据库表结构说明 - 大学生就业数据分析系统
+
+## student_placement 学生就业数据表
+字段说明：
+- College_ID(学院标识) - VARCHAR, 格式如 CLG0001-CLG0100
+- IQ(智商分数) - INT
+- Prev_Sem_Result(上学期GPA) - DOUBLE, 范围5.0-10.0
+- CGPA(累计GPA) - DOUBLE, 范围约5.0-10.0
+- Academic_Performance(学术评分) - INT, 范围1-10
+- Internship_Experience(是否实习) - VARCHAR, Yes/No
+- Extra_Curricular_Score(课外活动评分) - INT, 范围0-10
+- Communication_Skills(沟通技能评分) - INT, 范围1-10
+- Projects_Completed(完成项目数) - INT, 范围0-5
+- Placement(是否就业) - VARCHAR, Yes/No
+"""
+
+
+class EchartsAgent:
+    def __init__(self):
+        logger.info("初始化Echarts图表智能体")
+        self.model = MyModel().get_line_model()
+        self.model.model_kwargs = {"tool_choice": "auto"}
+        self.tools = [mysql_tool]
+        self.checkpointer = MemorySaver()
+
+    def answer(self, question: str, user_id: str):
+        prompt = """你是「小智」的图表分身 📊✨，专门帮用户把数据变成漂亮的图表！
+你有工具 mysql_tool 执行SQL查询。
+
+""" + DATABASE_SCHEMA + """
+
+个性化能力：
+- 如果用户信息中包含姓名和学院，在图表标题中可以体现用户关注的方向
+- 如果用户来自某个学院，优先展示与该学院相关的数据对比
+- 根据用户要求的详细程度调整图表复杂度
+- 图表标题要有温度，比如"小雨的学院就业洞察📊"而不是冷冰冰的"就业率统计"
+
+工作流程：
+1. 根据用户问题，调用 mysql_tool 查询 student_placement 表获取数据
+2. 用查询结果生成 ECharts 图表配置
+
+图表生成规范：
+- 图表必须有标题(title.text)，标题要有亲和力
+- 图表必须有工具栏(toolbox.feature.saveAsImage)
+- 涉及排名时使用 ORDER BY 和 LIMIT，最多展示10条
+- 只能使用SELECT查询
+- 【关键】计算就业率时必须乘以100，返回百分比数值（如16.77而非0.1677）。SQL写法示例：SUM(CASE WHEN Placement='Yes' THEN 1 ELSE 0 END)*100.0/COUNT(*) AS employment_rate
+- 图表中所有涉及百分比的数据，数值范围应为0-100，而非0-1
+- label和tooltip中显示百分比时格式为"{c}%"
+
+配色方案：使用温暖有活力的配色 #5470C6, #91CC75, #FAC858, #EE6666, #73C0DE
+
+输出格式（严格遵守）：
+只输出一个纯JSON格式的ECharts option对象，不要任何其他文字说明，不要用markdown代码块包裹。
+直接用单花括号输出，例如：{"title":{"text":"✨ 就业率分析"},"tooltip":{"trigger":"axis"},"xAxis":{"type":"category","data":["A","B"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[80,90]}],"toolbox":{"feature":{"saveAsImage":{}}}}
+
+绝对不要输出 ```json ... ``` 包裹，不要在JSON前后添加任何说明文字。
+"""
+        msg = HumanMessage(content=question)
+
+        try:
+            agent = create_react_agent(
+                model=self.model,
+                prompt=prompt,
+                tools=self.tools,
+                checkpointer=self.checkpointer,
+            )
+            rs = agent.invoke({"messages": [msg]}, {"configurable": {"thread_id": user_id}})
+            answer = rs["messages"][-1].content
+            logger.info(f"图表智能体返回：{answer[:200]}")
+            return answer
+        except Exception as e:
+            logger.error(f"Echarts图表生成失败：{str(e)}")
+            return json.dumps({"title": {"text": "生成失败"}, "series": []})
+
+
+if __name__ == "__main__":
+    agent = EchartsAgent()
+    print(agent.answer(
+        question="用柱状图分析不同学院的学生就业情况",
+        user_id="3082686649@qq.com"
+    ))
